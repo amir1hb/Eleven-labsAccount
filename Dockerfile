@@ -1,21 +1,22 @@
-FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+FROM python:3.11-slim
+
+# نصب پیش‌نیازهای سیستمی Playwright
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    && apt-get clean
 
 WORKDIR /app
 
-# Install dependencies first (layer caching)
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
+COPY . .
 
-# Copy source
-COPY src ./src
-COPY scripts ./scripts
+# ارتقاء pip و نصب وابستگی‌ها
+RUN pip install --upgrade pip
+RUN pip install -e .
 
-# Playwright browsers come pre-installed in this base image.
-# Kameleo is a desktop app — it can't run inside the container, so the Docker
-# image defaults to plain Playwright. To use Kameleo, run the bot on the host:
-#     pip install -e . && playwright install chromium && python -m src
-ENV PYTHONUNBUFFERED=1 \
-    HEADLESS=true \
-    BROWSER_MODE=playwright
+# نصب مرورگر Chromium و وابستگی‌های سیستمی آن
+RUN playwright install chromium
+RUN playwright install-deps
 
+EXPOSE 3000
 CMD ["python", "-m", "src"]
