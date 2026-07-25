@@ -38,7 +38,9 @@ from .menu import (
     CB_RETRY,
     CB_STATS,
 )
-from .pinmx import PinmxClient
+
+# ✅ تغییر: به جای PinMX از Guerrilla استفاده می‌کنیم
+from .guerrilla import GuerrillaMailClient  # <-- خط جدید
 from .supabase_client import Repo
 
 
@@ -52,13 +54,14 @@ async def _post_init(app: Application) -> None:
     repo.bootstrap_admin(settings.admin_telegram_id)
     logger.info("Bootstrap admin {} ensured", settings.admin_telegram_id)
 
-    pinmx = PinmxClient(base_url=settings.pinmx_api_base, token=settings.pinmx_token)
+    # ✅ استفاده از Guerrilla به جای PinMX
+    guerrilla = GuerrillaMailClient()
     try:
-        await pinmx.self_check()
-        logger.info("PinMX self-check OK (Growth tier active)")
+        await guerrilla.self_check()
+        logger.info("✅ Guerrilla Mail self-check OK (free tier active)")
     except Exception as exc:
-        logger.error("PinMX self-check failed: {}", exc)
-        await pinmx.aclose()
+        logger.error("❌ Guerrilla Mail self-check failed: {}", exc)
+        # چون Guerrilla نیازی به بستن ندارد، فقط raise می‌کنیم
         raise
 
     kameleo: KameleoBackend | None = None
@@ -74,12 +77,10 @@ async def _post_init(app: Application) -> None:
             logger.info("Kameleo self-check OK at {}", settings.kameleo_base_url)
         except Exception as exc:
             logger.error("Kameleo self-check failed: {}", exc)
-            await pinmx.aclose()
             raise
     elif settings.browser_mode == "playwright":
         logger.info("Using plain Playwright Chromium (no anti-detect)")
     else:
-        await pinmx.aclose()
         raise RuntimeError(
             f"BROWSER_MODE must be 'kameleo' or 'playwright', got {settings.browser_mode!r}"
         )
@@ -91,7 +92,8 @@ async def _post_init(app: Application) -> None:
     )
     await elevenlabs.__aenter__()
 
-    app.bot_data["pinmx"] = pinmx
+    # ✅ ذخیره guerrilla به جای pinmx
+    app.bot_data["guerrilla"] = guerrilla
     app.bot_data["elevenlabs"] = elevenlabs
     app.bot_data["kameleo"] = kameleo
 
@@ -99,10 +101,8 @@ async def _post_init(app: Application) -> None:
 
 
 async def _post_shutdown(app: Application) -> None:
-    pinmx: PinmxClient | None = app.bot_data.get("pinmx")
+    # ✅ Guerrilla نیازی به بستن ندارد، فقط ElevenLabs را می‌بندیم
     elevenlabs: ElevenLabsSignup | None = app.bot_data.get("elevenlabs")
-    if pinmx is not None:
-        await pinmx.aclose()
     if elevenlabs is not None:
         await elevenlabs.__aexit__(None, None, None)
     logger.info("Bot shut down cleanly")
