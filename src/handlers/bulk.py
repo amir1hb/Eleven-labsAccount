@@ -1,4 +1,3 @@
-"""/bulk N and 📦 Bulk Create — sequential bulk creation with live progress."""
 from __future__ import annotations
 
 from loguru import logger
@@ -12,7 +11,7 @@ from ..config import Settings
 from ..elevenlabs import ElevenLabsSignup
 from ..format import escape_md
 from ..menu import bulk_picker, post_create_menu
-from ..guerrilla import GuerrillaMailClient  # تغییر
+from ..tempmail_client import TempMailClient
 from ..supabase_client import Repo
 from ..workflow import BulkRow, bulk_create_accounts
 
@@ -26,7 +25,7 @@ async def _run_bulk(
 ) -> None:
     settings: Settings = context.application.bot_data["settings"]
     repo: Repo = context.application.bot_data["repo"]
-    guerrilla: GuerrillaMailClient = context.application.bot_data["guerrilla"]  # ✅ تغییر
+    tempmail: TempMailClient = context.application.bot_data["tempmail"]
     elevenlabs: ElevenLabsSignup = context.application.bot_data["elevenlabs"]
 
     if count < 1 or count > settings.bulk_max:
@@ -67,7 +66,7 @@ async def _run_bulk(
     await bulk_create_accounts(
         settings=settings,
         repo=repo,
-        guerrilla=guerrilla,  # ✅ تغییر
+        tempmail=tempmail,
         elevenlabs=elevenlabs,
         telegram_user_id=update.effective_user.id,
         count=count,
@@ -79,7 +78,6 @@ async def _run_bulk(
 
 @require_allowed
 async def cmd_bulk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """`/bulk N` runs immediately. `/bulk` alone shows the picker."""
     args = context.args or []
     if not args:
         await update.effective_message.reply_text(
@@ -104,7 +102,6 @@ async def cmd_bulk(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_allowed
 async def cb_bulk_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """User tapped 📦 Bulk Create — show the size picker."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(
@@ -115,7 +112,6 @@ async def cb_bulk_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 @require_allowed
 async def cb_bulk_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """User tapped a size button (e.g. `bulk:5`)."""
     query = update.callback_query
     await query.answer()
     data = query.data or ""
