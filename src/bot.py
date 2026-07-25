@@ -38,13 +38,8 @@ from .menu import (
     CB_RETRY,
     CB_STATS,
 )
-
-# ✅ تغییر: به جای PinMX از Guerrilla استفاده می‌کنیم
-from .guerrilla import GuerrillaMailClient  # <-- خط جدید
+from .tempmail_client import TempMailClient
 from .supabase_client import Repo
-
-
-# ---- lifecycle hooks --------------------------------------------------------
 
 
 async def _post_init(app: Application) -> None:
@@ -54,14 +49,12 @@ async def _post_init(app: Application) -> None:
     repo.bootstrap_admin(settings.admin_telegram_id)
     logger.info("Bootstrap admin {} ensured", settings.admin_telegram_id)
 
-    # ✅ استفاده از Guerrilla به جای PinMX
-    guerrilla = GuerrillaMailClient()
+    tempmail = TempMailClient()
     try:
-        await guerrilla.self_check()
-        logger.info("✅ Guerrilla Mail self-check OK (free tier active)")
+        await tempmail.self_check()
+        logger.info("Temp-Mail self-check OK (free tier active)")
     except Exception as exc:
-        logger.error("❌ Guerrilla Mail self-check failed: {}", exc)
-        # چون Guerrilla نیازی به بستن ندارد، فقط raise می‌کنیم
+        logger.error("Temp-Mail self-check failed: {}", exc)
         raise
 
     kameleo: KameleoBackend | None = None
@@ -92,8 +85,7 @@ async def _post_init(app: Application) -> None:
     )
     await elevenlabs.__aenter__()
 
-    # ✅ ذخیره guerrilla به جای pinmx
-    app.bot_data["guerrilla"] = guerrilla
+    app.bot_data["tempmail"] = tempmail
     app.bot_data["elevenlabs"] = elevenlabs
     app.bot_data["kameleo"] = kameleo
 
@@ -101,18 +93,13 @@ async def _post_init(app: Application) -> None:
 
 
 async def _post_shutdown(app: Application) -> None:
-    # ✅ Guerrilla نیازی به بستن ندارد، فقط ElevenLabs را می‌بندیم
     elevenlabs: ElevenLabsSignup | None = app.bot_data.get("elevenlabs")
     if elevenlabs is not None:
         await elevenlabs.__aexit__(None, None, None)
     logger.info("Bot shut down cleanly")
 
 
-# ---- handler registration ---------------------------------------------------
-
-
 def _register_handlers(app: Application) -> None:
-    # Slash commands
     app.add_handler(CommandHandler("start", h_start.cmd_start))
     app.add_handler(CommandHandler("menu", h_start.cmd_menu))
     app.add_handler(CommandHandler("help", h_start.cmd_help))
@@ -127,7 +114,6 @@ def _register_handlers(app: Application) -> None:
     app.add_handler(CommandHandler("remove_user", h_admin.cmd_remove_user))
     app.add_handler(CommandHandler("list_users", h_admin.cmd_list_users))
 
-    # Callback queries (inline buttons). Order matters — match prefixes first.
     app.add_handler(CallbackQueryHandler(h_start.cb_menu, pattern=f"^{CB_MENU}$"))
     app.add_handler(CallbackQueryHandler(h_start.cb_help, pattern=f"^{CB_HELP}$"))
     app.add_handler(CallbackQueryHandler(h_create.cb_create, pattern=f"^{CB_CREATE}$"))
@@ -151,13 +137,9 @@ def _register_handlers(app: Application) -> None:
         CallbackQueryHandler(h_admin.cb_admin_remove, pattern=f"^{CB_ADMIN_REMOVE}$")
     )
 
-    # Plain-text catcher for admin add/remove follow-up messages.
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, h_admin.text_admin_action)
     )
-
-
-# ---- entrypoint -------------------------------------------------------------
 
 
 def _configure_logging(level: str) -> None:
