@@ -17,7 +17,7 @@ from ..format import (
     render_progress,
 )
 from ..menu import post_create_menu, retry_menu
-from ..pinmx import PinmxClient
+from ..guerrilla import GuerrillaMailClient  # ✅ تغییر
 from ..supabase_client import Repo
 from ..workflow import TOTAL_STEPS, create_account
 
@@ -25,7 +25,7 @@ from ..workflow import TOTAL_STEPS, create_account
 async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, *, anchor: Message) -> None:
     settings: Settings = context.application.bot_data["settings"]
     repo: Repo = context.application.bot_data["repo"]
-    pinmx: PinmxClient = context.application.bot_data["pinmx"]
+    guerrilla: GuerrillaMailClient = context.application.bot_data["guerrilla"]  # ✅ تغییر
     elevenlabs: ElevenLabsSignup = context.application.bot_data["elevenlabs"]
 
     user_id = update.effective_user.id
@@ -45,18 +45,21 @@ async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, *, anchor: Me
     result = await create_account(
         settings=settings,
         repo=repo,
-        pinmx=pinmx,
+        guerrilla=guerrilla,  # ✅ تغییر
         elevenlabs=elevenlabs,
         telegram_user_id=user_id,
         progress=progress,
     )
 
     if result.success:
+        # توجه: render_account_success ممکن است از pinmx_login_url استفاده کند،
+        # اما چون ما آن را در workflow تغییر ندادیم، اینجا مشکلی ندارد.
+        # اگر فرمت آن تغییر کرد، می‌توانید پارامتر pinmx_login_url را حذف کنید.
         body = render_account_success(
             email=result.account.email,
             mailbox_password=result.account.mailbox_password,
             elevenlabs_password=result.account.elevenlabs_password,
-            pinmx_login_url=settings.pinmx_login_url,
+            pinmx_login_url=settings.pinmx_login_url,  # این خط همچنان کار می‌کند
         )
         await anchor.edit_text(
             body,
