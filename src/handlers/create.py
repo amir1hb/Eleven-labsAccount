@@ -1,4 +1,3 @@
-"""/create and 🤖 Create Account — single-account workflow with live progress."""
 from __future__ import annotations
 
 from loguru import logger
@@ -17,7 +16,7 @@ from ..format import (
     render_progress,
 )
 from ..menu import post_create_menu, retry_menu
-from ..guerrilla import GuerrillaMailClient  # ✅ تغییر
+from ..tempmail_client import TempMailClient
 from ..supabase_client import Repo
 from ..workflow import TOTAL_STEPS, create_account
 
@@ -25,7 +24,7 @@ from ..workflow import TOTAL_STEPS, create_account
 async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, *, anchor: Message) -> None:
     settings: Settings = context.application.bot_data["settings"]
     repo: Repo = context.application.bot_data["repo"]
-    guerrilla: GuerrillaMailClient = context.application.bot_data["guerrilla"]  # ✅ تغییر
+    tempmail: TempMailClient = context.application.bot_data["tempmail"]
     elevenlabs: ElevenLabsSignup = context.application.bot_data["elevenlabs"]
 
     user_id = update.effective_user.id
@@ -37,7 +36,6 @@ async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, *, anchor: Me
                 parse_mode=ParseMode.MARKDOWN_V2,
             )
         except BadRequest as exc:
-            # "message is not modified" etc — safe to ignore.
             logger.debug("progress edit ignored: {}", exc)
 
     await progress(1, TOTAL_STEPS, "Starting…")
@@ -45,21 +43,18 @@ async def _run(update: Update, context: ContextTypes.DEFAULT_TYPE, *, anchor: Me
     result = await create_account(
         settings=settings,
         repo=repo,
-        guerrilla=guerrilla,  # ✅ تغییر
+        tempmail=tempmail,
         elevenlabs=elevenlabs,
         telegram_user_id=user_id,
         progress=progress,
     )
 
     if result.success:
-        # توجه: render_account_success ممکن است از pinmx_login_url استفاده کند،
-        # اما چون ما آن را در workflow تغییر ندادیم، اینجا مشکلی ندارد.
-        # اگر فرمت آن تغییر کرد، می‌توانید پارامتر pinmx_login_url را حذف کنید.
         body = render_account_success(
             email=result.account.email,
             mailbox_password=result.account.mailbox_password,
             elevenlabs_password=result.account.elevenlabs_password,
-            pinmx_login_url=settings.pinmx_login_url,  # این خط همچنان کار می‌کند
+            pinmx_login_url=settings.pinmx_login_url,
         )
         await anchor.edit_text(
             body,
@@ -87,7 +82,6 @@ async def cmd_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def cb_create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-    # Reuse the same message for the live progress edits.
     anchor = query.message
     await anchor.edit_text(escape_md("Starting…"), parse_mode=ParseMode.MARKDOWN_V2)
     await _run(update, context, anchor=anchor)
