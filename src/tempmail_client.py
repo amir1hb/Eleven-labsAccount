@@ -1,29 +1,37 @@
-"""Temp-Mail API client for creating disposable emails and fetching messages."""
-from __future__ import annotations
-
 import asyncio
-import httpx
 import random
 import string
+from typing import Optional, Dict, Any, List
+
+import httpx
 from loguru import logger
 
 
 class TempMailClient:
-    """Client for Temp-Mail API (api.internal.temp-mail.io)."""
-
-    def __init__(self):
+    def __init__(self, email: Optional[str] = None, token: Optional[str] = None):
         self.base_url = "https://api.internal.temp-mail.io/api/v3"
-        self.email = None
-        self.token = None
+        self.email = email
+        self.token = token
 
-    async def create_mailbox(self) -> dict:
-        """Create a new temporary email address."""
-        # تولید نام کاربری تصادفی ۱۰ کاراکتری
+    async def create_mailbox(self) -> Dict[str, str]:
+        if self.email and self.token:
+            logger.info(f"Using existing mailbox: {self.email}")
+            return {"email": self.email, "token": self.token}
+
         name_length = 10
         username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=name_length))
-        
-        # دامنه‌های پشتیبانی شده توسط Temp-Mail
+
         domains = [
+            "ozsaip.com",
+            "ruutukf.com",
+            "mkzaso.com",
+            "yzcalo.com",
+            "wnbaldwy.com",
+            "bltiwd.com",
+            "xkxkud.com",
+            "bwmyga.com",
+            "lnovic.com",
+            "mrotzis.com",
             "temp-mail.io",
             "temp-mail.org",
             "temp-mail.com",
@@ -36,7 +44,6 @@ class TempMailClient:
         domain = random.choice(domains)
         email = f"{username}@{domain}"
 
-        # درخواست به API برای ایجاد ایمیل
         url = f"{self.base_url}/email/new"
         payload = {
             "min_name_length": name_length,
@@ -55,25 +62,18 @@ class TempMailClient:
                     self.email = data.get("email")
                     self.token = data.get("token")
                     logger.info(f"✅ Temp-Mail created: {self.email}")
-                    return {
-                        "email": self.email,
-                        "token": self.token
-                    }
+                    return {"email": self.email, "token": self.token}
                 else:
-                    raise Exception(f"Failed to create mailbox: {response.status_code}")
+                    raise Exception(f"Failed to create mailbox: {response.status_code} {response.text}")
             except Exception as e:
                 raise Exception(f"Failed to create mailbox via Temp-Mail: {str(e)}")
 
-    async def list_messages(self) -> list:
-        """Get list of messages for the current mailbox."""
+    async def list_messages(self) -> List[Dict[str, Any]]:
         if not self.token:
             return []
 
         url = f"{self.base_url}/email/list"
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+        headers = {"Accept": "application/json"}
         params = {
             "token": self.token,
             "limit": 20,
@@ -86,10 +86,9 @@ class TempMailClient:
                 if response.status_code == 200:
                     data = response.json()
                     messages = data.get("messages", [])
-                    # تبدیل به فرمت مورد انتظار در workflow
-                    formatted_messages = []
+                    formatted = []
                     for msg in messages:
-                        formatted_messages.append({
+                        formatted.append({
                             "id": msg.get("id"),
                             "body": msg.get("body_html", "") or msg.get("body_text", ""),
                             "subject": msg.get("subject", ""),
@@ -97,7 +96,7 @@ class TempMailClient:
                             "to": msg.get("to", {}).get("email", ""),
                             "created_at": msg.get("created_at", "")
                         })
-                    return formatted_messages
+                    return formatted
                 else:
                     logger.warning(f"List messages failed: {response.status_code}")
                     return []
@@ -105,8 +104,7 @@ class TempMailClient:
                 logger.warning(f"List messages error: {e}")
                 return []
 
-    async def get_message(self, message_id: str) -> dict:
-        """Get full content of a specific message."""
+    async def get_message(self, message_id: str) -> Dict[str, Any]:
         if not self.token:
             return {}
 
@@ -135,7 +133,6 @@ class TempMailClient:
                 return {}
 
     async def delete_mailbox(self) -> bool:
-        """Delete the current mailbox (cleanup)."""
         if not self.token:
             return True
 
@@ -149,13 +146,12 @@ class TempMailClient:
             except Exception:
                 return False
 
-    async def self_check(self):
-        """Check if Temp-Mail API is working."""
+    async def self_check(self) -> bool:
         try:
             result = await self.create_mailbox()
             if result.get("email"):
                 logger.info("✅ Temp-Mail self-check OK")
-                # پاک‌سازی بعد از چک
+                # Clean up after self-check
                 await self.delete_mailbox()
                 return True
         except Exception as e:
