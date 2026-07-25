@@ -127,7 +127,7 @@ async def _wait_for_verify_link(
     tempmail: TempMailClient,
     target_email: str,
     timeout_seconds: int,
-    poll_interval: float = 5.0,
+    poll_interval: float = 10.0,
 ) -> str | None:
     deadline = asyncio.get_event_loop().time() + timeout_seconds
     while asyncio.get_event_loop().time() < deadline:
