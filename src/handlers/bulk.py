@@ -12,7 +12,7 @@ from ..config import Settings
 from ..elevenlabs import ElevenLabsSignup
 from ..format import escape_md
 from ..menu import bulk_picker, post_create_menu
-from ..pinmx import PinmxClient
+from ..guerrilla import GuerrillaMailClient  # ✅ تغییر
 from ..supabase_client import Repo
 from ..workflow import BulkRow, bulk_create_accounts
 
@@ -26,7 +26,7 @@ async def _run_bulk(
 ) -> None:
     settings: Settings = context.application.bot_data["settings"]
     repo: Repo = context.application.bot_data["repo"]
-    pinmx: PinmxClient = context.application.bot_data["pinmx"]
+    guerrilla: GuerrillaMailClient = context.application.bot_data["guerrilla"]  # ✅ تغییر
     elevenlabs: ElevenLabsSignup = context.application.bot_data["elevenlabs"]
 
     if count < 1 or count > settings.bulk_max:
@@ -67,7 +67,7 @@ async def _run_bulk(
     await bulk_create_accounts(
         settings=settings,
         repo=repo,
-        pinmx=pinmx,
+        guerrilla=guerrilla,  # ✅ تغییر
         elevenlabs=elevenlabs,
         telegram_user_id=update.effective_user.id,
         count=count,
