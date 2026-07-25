@@ -12,7 +12,7 @@ from ..config import Settings
 from ..elevenlabs import ElevenLabsSignup
 from ..format import escape_md
 from ..menu import bulk_picker, post_create_menu
-from ..guerrilla import GuerrillaMailClient  # ✅ تغییر
+from ..guerrilla import GuerrillaMailClient  # تغییر
 from ..supabase_client import Repo
 from ..workflow import BulkRow, bulk_create_accounts
 
